@@ -1,0 +1,36 @@
+meta {
+  name: Generate Team by CSV
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/team-generator/upload-csv
+  body: multipartForm
+  auth: inherit
+}
+
+body:json {
+  {
+    "numberOfGroups": 3,
+    "maxMembersPerGroup": 3,
+    "names": [
+      "Alice",
+      "Bob",
+      "Charlie",
+      "Dave",
+      "Eve",
+      "Frank"
+    ],
+    "groupNames": [
+      {
+        "groupId": 1,
+        "name": "Team Alpha"
+      },
+      {
+        "groupId": 2,
+        "name": "Team Beta"
+      }
+    ]
+  }
+}

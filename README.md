@@ -24,12 +24,17 @@ The API is documented using Swagger. Once running, view the documentation at:
 
 ### Prerequisites
 
-- Node.js (v14+ recommended)
+- Node.js (v20+ recommended)
 - npm
 
 ### Installation
 
-1. Clone the repository
+1. Clone the repository:
+
+```bash
+git clone https://github.com/handikatriarlan/teamify.git
+```
+
 2. Install dependencies:
 
 ```bash
