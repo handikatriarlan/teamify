@@ -1,0 +1,36 @@
+meta {
+  name: Generate Team
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/team-generator/generate
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "numberOfGroups": 3,
+    "maxMembersPerGroup": 3,
+    "names": [
+      "Alice",
+      "Bob",
+      "Charlie",
+      "Dave",
+      "Eve",
+      "Frank"
+    ],
+    "groupNames": [
+      {
+        "groupId": 1,
+        "name": "Team Alpha"
+      },
+      {
+        "groupId": 2,
+        "name": "Team Beta"
+      }
+    ]
+  }
+}
