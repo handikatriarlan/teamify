@@ -12,9 +12,24 @@ import { Response } from 'express';
 import { TeamGeneratorService } from './team-generator.service';
 import { PdfExportService } from './pdf-export.service';
 import { GenerateTeamsDto } from './dto/generate-teams.dto';
+import {
+  TeamGenerationResponseDto,
+  CsvUploadResponseDto,
+} from './dto/team-response.dto';
 import * as csv from 'csv-parser';
 import { Readable } from 'stream';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+  ApiProduces,
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 
+@ApiTags('team-generator')
 @Controller('team-generator')
 export class TeamGeneratorController {
   constructor(
@@ -23,13 +38,55 @@ export class TeamGeneratorController {
   ) {}
 
   @Post('generate')
-  async generateTeams(@Body() generateTeamsDto: GenerateTeamsDto) {
+  @ApiOperation({
+    summary: 'Generate teams',
+    description:
+      'Generate random teams from a list of names based on the provided parameters',
+  })
+  @ApiBody({ type: GenerateTeamsDto })
+  @ApiCreatedResponse({
+    description: 'Teams generated successfully',
+    type: TeamGenerationResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input parameters or constraints violation',
+  })
+  async generateTeams(
+    @Body() generateTeamsDto: GenerateTeamsDto,
+  ): Promise<TeamGenerationResponseDto> {
     return this.teamGeneratorService.generateTeams(generateTeamsDto);
   }
 
   @Post('upload-csv')
+  @ApiOperation({
+    summary: 'Upload CSV with names',
+    description:
+      'Upload a CSV file containing names to be used for team generation',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'CSV file with names',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'CSV processed successfully',
+    type: CsvUploadResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file format or no names found in the CSV',
+  })
   @UseInterceptors(FileInterceptor('file'))
-  async uploadCsv(@UploadedFile() file: Express.Multer.File) {
+  async uploadCsv(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<CsvUploadResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -71,6 +128,28 @@ export class TeamGeneratorController {
   }
 
   @Post('export-pdf')
+  @ApiOperation({
+    summary: 'Export teams to PDF',
+    description:
+      'Generate teams and export the result to a downloadable PDF file',
+  })
+  @ApiBody({ type: GenerateTeamsDto })
+  @ApiProduces('application/pdf')
+  @ApiResponse({
+    status: 200,
+    description: 'PDF generated successfully',
+    content: {
+      'application/pdf': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid input parameters or constraints violation',
+  })
   async exportToPdf(
     @Body() generateTeamsDto: GenerateTeamsDto,
     @Res() res: Response,
