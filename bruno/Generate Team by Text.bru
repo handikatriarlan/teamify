@@ -5,22 +5,21 @@ meta {
 }
 
 post {
-  url: {{baseUrl}}/team-generator/generate
+  url: 172.18.56.102:3000/team-generator/generate
   body: json
   auth: inherit
 }
 
 body:json {
   {
-    "numberOfGroups": 2,
-    "maxMembersPerGroup": 4,
+    "numberOfGroups": 3,
     "names": [
-      "Arlan",
-      "Tri",
-      "Handika",
-      "Handi",
-      "Han",
-      "Vorgraze"
+      "Alice",
+      "Bob",
+      "Charlie",
+      "Dave",
+      "Eve",
+      "Frank"
     ],
     "groupNames": [
       {
@@ -30,6 +29,12 @@ body:json {
       {
         "groupId": 2,
         "name": "Team Beta"
+      }
+    ],
+    "customGroupSizes": [
+      {
+        "groupId": 1,
+        "size": 3
       }
     ]
   }

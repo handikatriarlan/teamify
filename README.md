@@ -1,13 +1,15 @@
 # Teamify - Team Generator API
 
-A NestJS application for generating random teams from a list of names.
+A NestJS application for generating random teams from a list of names with smart distribution features.
 
 ## Features
 
-- Generate random teams based on user-defined parameters
+- Generate random teams with flexible group size distribution
+- Customize specific group sizes while allowing automatic distribution for others
+- Randomized member assignment for fair team creation
 - Upload CSV files with lists of names
 - Export team assignments to PDF
-- RESTful API with Swagger documentation
+- RESTful API with comprehensive Swagger documentation
 
 ## API Endpoints
 
@@ -16,9 +18,41 @@ The API is documented using Swagger. Once running, view the documentation at:
 
 ### Main Endpoints
 
-- `POST /team-generator/generate` - Generate teams with provided parameters
-- `POST /team-generator/upload-csv` - Upload a CSV file with names
-- `POST /team-generator/export-pdf` - Export generated teams to PDF
+#### `POST /team-generator/generate`
+
+Generate teams with flexible group size distribution.
+
+- If no custom sizes are provided, participants are distributed evenly across all groups
+- If custom sizes are specified for some groups, those groups get exactly that many members
+- Remaining participants are distributed evenly among groups without custom sizes
+- When distribution is uneven, groups receiving extra members are randomized
+- All groups must have at least 1 member
+
+#### `POST /team-generator/upload-csv`
+
+Upload a CSV file containing names to be used for team generation.
+
+#### `POST /team-generator/export-pdf`
+
+Generate teams and export the result to a downloadable PDF file.
+
+## Group Size Distribution Features
+
+### Even Distribution
+
+When the number of participants divides evenly by the number of groups, all groups will have the same number of members.
+
+### Custom Group Sizes
+
+You can specify exact sizes for specific groups. For example, you might want:
+
+- Group 1 to have exactly 5 members
+- Group 3 to have exactly 4 members
+- Let the system automatically distribute the remaining participants to groups 2 and 4
+
+### Smart Distribution for Uneven Groups
+
+When even distribution isn't possible, the system randomly determines which groups get the extra members, rather than always assigning extras to the first groups.
 
 ## Getting Started
 
@@ -52,16 +86,106 @@ npm run start:dev
 
 ## Usage Examples
 
-### Generate Teams via API
+### Generate Teams with Default Distribution
 
 ```bash
 curl -X POST http://localhost:3000/team-generator/generate \
   -H "Content-Type: application/json" \
   -d '{
     "numberOfGroups": 3,
-    "maxMembersPerGroup": 5,
-    "names": ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Heidi", "Ivan", "Judy"]
+    "names": ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Heidi"]
   }'
+```
+
+Response:
+
+```json
+{
+  "teams": [
+    {
+      "name": "Group 1",
+      "members": [
+        { "name": "Charlie" },
+        { "name": "Frank" },
+        { "name": "Alice" }
+      ],
+      "size": 3
+    },
+    {
+      "name": "Group 2",
+      "members": [{ "name": "Dave" }, { "name": "Bob" }],
+      "size": 2
+    },
+    {
+      "name": "Group 3",
+      "members": [{ "name": "Eve" }, { "name": "Grace" }, { "name": "Heidi" }],
+      "size": 3
+    }
+  ],
+  "totalParticipants": 8,
+  "totalTeams": 3,
+  "generatedAt": "2023-08-15T14:30:45.123Z",
+  "isEvenDistribution": false
+}
+```
+
+### Generate Teams with Custom Group Sizes
+
+```bash
+curl -X POST http://localhost:3000/team-generator/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "numberOfGroups": 4,
+    "names": ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Heidi", "Ivan", "Judy"],
+    "customGroupSizes": [
+      {"groupId": 1, "size": 3},
+      {"groupId": 3, "size": 4}
+    ],
+    "groupNames": [
+      {"groupId": 1, "name": "Team Alpha"},
+      {"groupId": 2, "name": "Team Beta"},
+      {"groupId": 3, "name": "Team Gamma"},
+      {"groupId": 4, "name": "Team Delta"}
+    ]
+  }'
+```
+
+Response:
+
+```json
+{
+  "teams": [
+    {
+      "name": "Team Alpha",
+      "members": [{ "name": "Bob" }, { "name": "Frank" }, { "name": "Judy" }],
+      "size": 3
+    },
+    {
+      "name": "Team Beta",
+      "members": [{ "name": "Charlie" }, { "name": "Eve" }],
+      "size": 2
+    },
+    {
+      "name": "Team Gamma",
+      "members": [
+        { "name": "Dave" },
+        { "name": "Grace" },
+        { "name": "Ivan" },
+        { "name": "Alice" }
+      ],
+      "size": 4
+    },
+    {
+      "name": "Team Delta",
+      "members": [{ "name": "Heidi" }],
+      "size": 1
+    }
+  ],
+  "totalParticipants": 10,
+  "totalTeams": 4,
+  "generatedAt": "2023-08-15T14:35:12.456Z",
+  "isEvenDistribution": false
+}
 ```
 
 ### Upload CSV File
@@ -78,6 +202,7 @@ name
 Alice
 Bob
 Charlie
+Dave
 ```
 
 ### Export to PDF
@@ -87,10 +212,29 @@ curl -X POST http://localhost:3000/team-generator/export-pdf \
   -H "Content-Type: application/json" \
   -d '{
     "numberOfGroups": 3,
-    "maxMembersPerGroup": 5,
-    "names": ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Heidi", "Ivan", "Judy"]
+    "names": ["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank", "Grace", "Heidi"],
+    "customGroupSizes": [{"groupId": 1, "size": 4}]
   }' \
   -o teams.pdf
 ```
 
-The Swagger documentation provides a nice web interface for testing the API directly in the browser. Users can navigate to `http://localhost:3000/api` to see all the available endpoints, their parameters, and try them out.
+## API Validation Features
+
+The API includes comprehensive validation to ensure:
+
+- All groups have at least one member
+- Custom group sizes don't exceed the total number of participants
+- There are enough participants for all groups
+- No duplicate group IDs in custom sizes
+- No duplicate participant names (automatically deduplicated)
+- Group IDs are valid (between 1 and the total number of groups)
+
+## PDF Export Features
+
+The generated PDF includes:
+
+- Team names and member lists
+- Total number of participants and teams
+- Generation timestamp
+- Distribution information (even or uneven)
+- Clean, professional formatting
