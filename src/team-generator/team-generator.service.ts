@@ -82,20 +82,32 @@ export class TeamGeneratorService {
     // Initialize array with zeros
     const groupSizes = Array(numberOfGroups).fill(0);
     
-    // If no custom sizes provided, distribute evenly
+    // If no custom sizes provided, distribute evenly with randomized extras
     if (!customGroupSizes || customGroupSizes.length === 0) {
       const baseSize = Math.floor(totalParticipants / numberOfGroups);
       const remainder = totalParticipants % numberOfGroups;
       
+      // Fill all groups with base size
       for (let i = 0; i < numberOfGroups; i++) {
-        groupSizes[i] = baseSize + (i < remainder ? 1 : 0);
+        groupSizes[i] = baseSize;
+      }
+      
+      // Randomize which groups get extra members
+      if (remainder > 0) {
+        // Create array of group indices and shuffle it
+        const groupIndices = Array.from({ length: numberOfGroups }, (_, i) => i);
+        this.shuffleArray(groupIndices);
+        
+        // Assign extra members to randomly selected groups
+        for (let i = 0; i < remainder; i++) {
+          groupSizes[groupIndices[i]]++;
+        }
       }
       
       return groupSizes;
     }
     
     // Validate custom sizes
-    // Check if any groupId is invalid
     const invalidGroups = customGroupSizes.filter(g => g.groupId < 1 || g.groupId > numberOfGroups);
     if (invalidGroups.length > 0) {
       throw new BadRequestException(
@@ -141,15 +153,26 @@ export class TeamGeneratorService {
       );
     }
     
-    // Distribute remaining participants evenly among groups without custom size
+    // Distribute remaining participants evenly among groups without custom size, with randomized extras
     if (groupsWithoutCustomSize.size > 0) {
       const baseSize = Math.floor(remainingParticipants / groupsWithoutCustomSize.size);
       const remainder = remainingParticipants % groupsWithoutCustomSize.size;
       
-      let remainderCounter = 0;
+      // First assign base size to all groups without custom size
       for (const groupId of groupsWithoutCustomSize) {
-        groupSizes[groupId - 1] = baseSize + (remainderCounter < remainder ? 1 : 0);
-        remainderCounter++;
+        groupSizes[groupId - 1] = baseSize;
+      }
+      
+      // Randomize which groups get the extra members
+      if (remainder > 0) {
+        // Convert Set to Array and shuffle
+        const groupsArray = Array.from(groupsWithoutCustomSize);
+        this.shuffleArray(groupsArray);
+        
+        // Assign extra members to randomly selected groups
+        for (let i = 0; i < remainder; i++) {
+          groupSizes[groupsArray[i] - 1]++;
+        }
       }
     }
     
