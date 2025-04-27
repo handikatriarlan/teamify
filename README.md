@@ -238,3 +238,19 @@ The generated PDF includes:
 - Generation timestamp
 - Distribution information (even or uneven)
 - Clean, professional formatting
+
+## CORS Configuration
+
+This API supports Cross-Origin Resource Sharing (CORS) for frontend applications:
+
+### Development
+
+During development, CORS is enabled for all origins by default.
+
+### Production
+
+For production, set the `ALLOWED_ORIGINS` environment variable to restrict access:
+
+```bash
+# In .env file or environment variables
+ALLOWED_ORIGINS=https://your-frontend.com,https://another-frontend.com
