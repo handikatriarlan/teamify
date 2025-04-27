@@ -38,9 +38,16 @@ export class TeamGeneratorController {
   ) {}
 
   @Post('generate')
-  @ApiOperation({
+  @ApiOperation({ 
     summary: 'Generate teams',
-    description: 'Generate random teams from a list of names with optional custom group sizes. If custom sizes are provided, each group will have exactly that number of members and the sum of all sizes must match the total number of participants.'
+    description: `
+      Generate random teams from a list of names with flexible group size distribution.
+      
+      - If no custom sizes are provided, participants are distributed evenly across all groups
+      - If custom sizes are specified for some groups, those groups get exactly that many members
+      - Remaining participants are distributed evenly among groups without custom sizes
+      - All groups must have at least 1 member
+    `
   })
   @ApiBody({ type: GenerateTeamsDto })
   @ApiCreatedResponse({
@@ -126,9 +133,16 @@ export class TeamGeneratorController {
   }
 
   @Post('export-pdf')
-  @ApiOperation({
+  @ApiOperation({ 
     summary: 'Export teams to PDF',
-    description: 'Generate teams with optional custom group sizes and export the result to a downloadable PDF file. If custom sizes are provided, each group will have exactly that number of members and the sum of all sizes must match the total number of participants.'
+    description: `
+      Generate teams and export the result to a downloadable PDF file.
+      
+      - If no custom sizes are provided, participants are distributed evenly across all groups
+      - If custom sizes are specified for some groups, those groups get exactly that many members
+      - Remaining participants are distributed evenly among groups without custom sizes
+      - All groups must have at least 1 member
+    `
   })
   @ApiBody({ type: GenerateTeamsDto })
   @ApiProduces('application/pdf')

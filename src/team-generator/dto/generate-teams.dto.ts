@@ -89,11 +89,10 @@ export class GenerateTeamsDto {
   groupNames?: GroupNameDto[];
 
   @ApiPropertyOptional({
-    description: 'Optional custom sizes for each group. The sum of all sizes must exactly match the number of participants.',
+    description: 'Optional custom sizes for specific groups. Groups without specified sizes will have remaining participants distributed evenly among them.',
     example: [
       { groupId: 1, size: 4 },
-      { groupId: 2, size: 3 },
-      { groupId: 3, size: 3 },
+      { groupId: 3, size: 5 },
     ],
     type: [GroupSizeDto],
   })

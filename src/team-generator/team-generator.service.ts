@@ -32,8 +32,8 @@ export class TeamGeneratorService {
       throw new BadRequestException('Duplicate names are not allowed');
     }
 
-    // Validate and calculate group sizes
-    const groupSizes = this.calculateGroupSizes(numberOfGroups, uniqueNames.length, customGroupSizes);
+    // Calculate group sizes with flexible distribution
+    const groupSizes = this.calculateFlexibleGroupSizes(numberOfGroups, uniqueNames.length, customGroupSizes);
     
     // Shuffle the names array
     const shuffledNames = this.shuffleArray([...uniqueNames]);
@@ -74,59 +74,86 @@ export class TeamGeneratorService {
     };
   }
 
-  private calculateGroupSizes(
+  private calculateFlexibleGroupSizes(
     numberOfGroups: number, 
-    totalNames: number, 
+    totalParticipants: number, 
     customGroupSizes?: { groupId: number; size: number }[]
   ): number[] {
-    // If custom sizes are provided, use them
-    if (customGroupSizes && customGroupSizes.length > 0) {
-      // Validate that all groups have a defined size
-      const providedGroupIds = customGroupSizes.map(g => g.groupId);
-      for (let i = 1; i <= numberOfGroups; i++) {
-        if (!providedGroupIds.includes(i)) {
-          throw new BadRequestException(`Group ${i} is missing a custom size definition`);
-        }
-      }
-
-      // Check if there are extra group definitions
-      const invalidGroups = customGroupSizes.filter(g => g.groupId > numberOfGroups);
-      if (invalidGroups.length > 0) {
-        throw new BadRequestException(
-          `Invalid group IDs found: ${invalidGroups.map(g => g.groupId).join(', ')}. Only ${numberOfGroups} groups were requested.`
-        );
-      }
-
-      // Sort by group ID to ensure correct order
-      const sortedSizes = [...customGroupSizes].sort((a, b) => a.groupId - b.groupId);
+    // Initialize array with zeros
+    const groupSizes = Array(numberOfGroups).fill(0);
+    
+    // If no custom sizes provided, distribute evenly
+    if (!customGroupSizes || customGroupSizes.length === 0) {
+      const baseSize = Math.floor(totalParticipants / numberOfGroups);
+      const remainder = totalParticipants % numberOfGroups;
       
-      // Get just the sizes
-      const sizes = sortedSizes.map(g => g.size);
-      
-      // Validate each group has at least one member
-      if (sizes.some(size => size < 1)) {
-        throw new BadRequestException('Each group must have at least 1 member');
+      for (let i = 0; i < numberOfGroups; i++) {
+        groupSizes[i] = baseSize + (i < remainder ? 1 : 0);
       }
       
-      // Validate that the total size exactly matches the number of names
-      const totalSize = sizes.reduce((sum, size) => sum + size, 0);
-      if (totalSize !== totalNames) {
-        throw new BadRequestException(
-          `The sum of all custom group sizes (${totalSize}) must exactly match the number of participants (${totalNames})`
-        );
-      }
-      
-      return sizes;
+      return groupSizes;
     }
     
-    // Otherwise, calculate even distribution
-    const baseGroupSize = Math.floor(totalNames / numberOfGroups);
-    const remainingMembers = totalNames % numberOfGroups;
+    // Validate custom sizes
+    // Check if any groupId is invalid
+    const invalidGroups = customGroupSizes.filter(g => g.groupId < 1 || g.groupId > numberOfGroups);
+    if (invalidGroups.length > 0) {
+      throw new BadRequestException(
+        `Invalid group IDs found: ${invalidGroups.map(g => g.groupId).join(', ')}. Group IDs must be between 1 and ${numberOfGroups}.`
+      );
+    }
     
-    // Create an array of group sizes with remaining members distributed from start
-    return Array(numberOfGroups).fill(0).map((_, index) => 
-      index < remainingMembers ? baseGroupSize + 1 : baseGroupSize
-    );
+    // Check for duplicates in group IDs
+    const uniqueGroupIds = new Set(customGroupSizes.map(g => g.groupId));
+    if (uniqueGroupIds.size !== customGroupSizes.length) {
+      throw new BadRequestException('Duplicate group IDs found in custom sizes');
+    }
+    
+    // Apply custom sizes
+    let remainingParticipants = totalParticipants;
+    const groupsWithoutCustomSize = new Set(Array.from({ length: numberOfGroups }, (_, i) => i + 1));
+    
+    for (const customSize of customGroupSizes) {
+      const { groupId, size } = customSize;
+      
+      // Validate size is positive
+      if (size < 1) {
+        throw new BadRequestException(`Group ${groupId} must have at least 1 member`);
+      }
+      
+      // Apply custom size
+      groupSizes[groupId - 1] = size;
+      remainingParticipants -= size;
+      groupsWithoutCustomSize.delete(groupId);
+    }
+    
+    // Validate remaining participants is enough for groups without custom size
+    if (remainingParticipants < groupsWithoutCustomSize.size) {
+      throw new BadRequestException(
+        `Not enough participants remaining (${remainingParticipants}) to allocate at least 1 member to each of the ${groupsWithoutCustomSize.size} groups without custom sizes`
+      );
+    }
+    
+    // If remaining participants is negative, custom sizes exceed total participants
+    if (remainingParticipants < 0) {
+      throw new BadRequestException(
+        `The sum of custom group sizes (${totalParticipants - remainingParticipants}) exceeds the total number of participants (${totalParticipants})`
+      );
+    }
+    
+    // Distribute remaining participants evenly among groups without custom size
+    if (groupsWithoutCustomSize.size > 0) {
+      const baseSize = Math.floor(remainingParticipants / groupsWithoutCustomSize.size);
+      const remainder = remainingParticipants % groupsWithoutCustomSize.size;
+      
+      let remainderCounter = 0;
+      for (const groupId of groupsWithoutCustomSize) {
+        groupSizes[groupId - 1] = baseSize + (remainderCounter < remainder ? 1 : 0);
+        remainderCounter++;
+      }
+    }
+    
+    return groupSizes;
   }
 
   private shuffleArray<T>(array: T[]): T[] {
