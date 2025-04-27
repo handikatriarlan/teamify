@@ -3,12 +3,20 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { corsConfig } from './config/cors.config';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import * as express from 'express';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+// Create Express instance
+const server = express();
 
-  app.enableCors();
-
+export async function bootstrap() {
+  const app = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(server),
+  );
+  
+  app.enableCors(corsConfig.getOptions());
+  
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -16,19 +24,27 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-
-  // Set up Swagger documentation
+  
   const config = new DocumentBuilder()
     .setTitle('Teamify API')
     .setDescription('API for generating random teams from a list of names')
     .setVersion('1.0')
     .addTag('team-generator', 'Team generation operations')
     .build();
-
+  
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
-  await app.listen(process.env.PORT || 3000);
-  // console.log(`Application is running on: ${await app.getUrl()}`);
+  
+  await app.init();
+  return server;
 }
-bootstrap();
+
+// Standard NestJS standalone execution
+if (process.env.NODE_ENV !== 'vercel') {
+  bootstrap().then(server => {
+    const port = process.env.PORT || 3000;
+    server.listen(port, () => {
+      console.log(`Application is running on: http://localhost:${port}`);
+    });
+  });
+}
