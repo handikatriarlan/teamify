@@ -28,7 +28,6 @@ import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
 } from '@nestjs/swagger';
-import { memoryStorage } from 'multer';
 
 @ApiTags('team-generator')
 @Controller('team-generator')
@@ -89,10 +88,10 @@ export class TeamGeneratorController {
   @ApiBadRequestResponse({
     description: 'Invalid file format or no names found in the CSV'
   })
-  @UseInterceptors(FileInterceptor('file', {
-    storage: memoryStorage(),
-  }))
-  async uploadCsv(@UploadedFile() file: Express.Multer.File) {
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCsv(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<CsvUploadResponseDto> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
