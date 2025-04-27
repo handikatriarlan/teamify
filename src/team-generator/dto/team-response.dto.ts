@@ -20,6 +20,12 @@ export class TeamResponseDto {
     type: [TeamMemberResponseDto],
   })
   members: TeamMemberResponseDto[];
+
+  @ApiProperty({
+    description: 'Size of the team (number of members)',
+    example: 4,
+  })
+  size: number;
 }
 
 export class TeamGenerationResponseDto {

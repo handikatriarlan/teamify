@@ -31,6 +31,28 @@ export class GroupNameDto {
   name: string;
 }
 
+export class GroupSizeDto {
+  @ApiProperty({
+    description: 'The ID of the group (1-based)',
+    example: 1,
+    minimum: 1,
+    type: Number,
+  })
+  @IsInt()
+  @Min(1)
+  groupId: number;
+
+  @ApiProperty({
+    description: 'The desired size for this group',
+    example: 5,
+    minimum: 1,
+    type: Number,
+  })
+  @IsInt()
+  @Min(1)
+  size: number;
+}
+
 export class GenerateTeamsDto {
   @ApiProperty({
     description: 'Number of groups/teams to be generated',
@@ -41,16 +63,6 @@ export class GenerateTeamsDto {
   @IsInt()
   @Min(1)
   numberOfGroups: number;
-
-  @ApiProperty({
-    description: 'Maximum number of members allowed per group',
-    example: 5,
-    minimum: 1,
-    type: Number,
-  })
-  @IsInt()
-  @Min(1)
-  maxMembersPerGroup: number;
 
   @ApiProperty({
     description: 'List of participant names to be assigned to groups',
@@ -75,4 +87,19 @@ export class GenerateTeamsDto {
   @ValidateNested({ each: true })
   @Type(() => GroupNameDto)
   groupNames?: GroupNameDto[];
+
+  @ApiPropertyOptional({
+    description: 'Optional custom sizes for each group. The sum of all sizes must exactly match the number of participants.',
+    example: [
+      { groupId: 1, size: 4 },
+      { groupId: 2, size: 3 },
+      { groupId: 3, size: 3 },
+    ],
+    type: [GroupSizeDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => GroupSizeDto)
+  customGroupSizes?: GroupSizeDto[];
 }

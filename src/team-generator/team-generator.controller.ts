@@ -40,8 +40,7 @@ export class TeamGeneratorController {
   @Post('generate')
   @ApiOperation({
     summary: 'Generate teams',
-    description:
-      'Generate random teams from a list of names based on the provided parameters',
+    description: 'Generate random teams from a list of names with optional custom group sizes. If custom sizes are provided, each group will have exactly that number of members and the sum of all sizes must match the total number of participants.'
   })
   @ApiBody({ type: GenerateTeamsDto })
   @ApiCreatedResponse({
@@ -49,7 +48,7 @@ export class TeamGeneratorController {
     type: TeamGenerationResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid input parameters or constraints violation',
+    description: 'Invalid input parameters or constraints violation, such as insufficient participants or invalid group sizes'
   })
   async generateTeams(
     @Body() generateTeamsDto: GenerateTeamsDto,
@@ -60,8 +59,7 @@ export class TeamGeneratorController {
   @Post('upload-csv')
   @ApiOperation({
     summary: 'Upload CSV with names',
-    description:
-      'Upload a CSV file containing names to be used for team generation',
+    description: 'Upload a CSV file containing names to be used for team generation. The names can then be used with custom group sizes in the generate endpoint.'
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -71,7 +69,7 @@ export class TeamGeneratorController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'CSV file with names',
+          description: 'CSV file with names (each name in a separate row)',
         },
       },
     },
@@ -81,7 +79,7 @@ export class TeamGeneratorController {
     type: CsvUploadResponseDto,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid file format or no names found in the CSV',
+    description: 'Invalid file format or no names found in the CSV'
   })
   @UseInterceptors(FileInterceptor('file'))
   async uploadCsv(
@@ -130,8 +128,7 @@ export class TeamGeneratorController {
   @Post('export-pdf')
   @ApiOperation({
     summary: 'Export teams to PDF',
-    description:
-      'Generate teams and export the result to a downloadable PDF file',
+    description: 'Generate teams with optional custom group sizes and export the result to a downloadable PDF file. If custom sizes are provided, each group will have exactly that number of members and the sum of all sizes must match the total number of participants.'
   })
   @ApiBody({ type: GenerateTeamsDto })
   @ApiProduces('application/pdf')
@@ -148,7 +145,7 @@ export class TeamGeneratorController {
     },
   })
   @ApiBadRequestResponse({
-    description: 'Invalid input parameters or constraints violation',
+    description: 'Invalid input parameters or constraints violation, such as insufficient participants or invalid group sizes'
   })
   async exportToPdf(
     @Body() generateTeamsDto: GenerateTeamsDto,
