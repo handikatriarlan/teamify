@@ -22,7 +22,7 @@ export interface TeamGenerationResult {
 @Injectable()
 export class TeamGeneratorService {
   generateTeams(generateTeamsDto: GenerateTeamsDto): TeamGenerationResult {
-    const { numberOfGroups, names, groupNames, customGroupSizes } = generateTeamsDto;
+    const { numberOfGroups, names, groupNames, customGroupSizes, lockedGroups } = generateTeamsDto;
 
     // Deduplicate names
     const uniqueNames = [...new Set(names)];
@@ -32,38 +32,26 @@ export class TeamGeneratorService {
       throw new BadRequestException('Duplicate names are not allowed');
     }
 
+    // Validate locked groups
+    this.validateLockedGroups(uniqueNames, lockedGroups);
+
     // Calculate group sizes with flexible distribution
     const groupSizes = this.calculateFlexibleGroupSizes(numberOfGroups, uniqueNames.length, customGroupSizes);
     
-    // Shuffle the names array
-    const shuffledNames = this.shuffleArray([...uniqueNames]);
+    // Process locked groups and remaining names
+    const { lockedSets, remainingNames } = this.processLockedGroups(uniqueNames, lockedGroups);
+
+    // Assign locked groups and remaining names to teams
+    const teams = this.assignToTeams(
+      numberOfGroups, 
+      groupSizes, 
+      remainingNames, 
+      lockedSets, 
+      groupNames
+    );
 
     // Calculate if distribution is even
-    const isEvenDistribution = groupSizes.every(size => size === groupSizes[0]);
-
-    // Create teams
-    const teams: Team[] = [];
-    let currentNameIndex = 0;
-
-    for (let i = 0; i < numberOfGroups; i++) {
-      const customName = groupNames?.find(g => g.groupId === i + 1)?.name;
-      const teamName = customName || `Group ${i + 1}`;
-      
-      // Get the size for this group
-      const teamSize = groupSizes[i];
-      
-      const teamMembers: TeamMember[] = shuffledNames
-        .slice(currentNameIndex, currentNameIndex + teamSize)
-        .map(name => ({ name }));
-
-      teams.push({
-        name: teamName,
-        members: teamMembers,
-        size: teamMembers.length
-      });
-      
-      currentNameIndex += teamSize;
-    }
+    const isEvenDistribution = teams.every(team => team.size === teams[0].size);
 
     return {
       teams,
@@ -72,6 +60,148 @@ export class TeamGeneratorService {
       generatedAt: new Date(),
       isEvenDistribution,
     };
+  }
+
+  private validateLockedGroups(
+    allNames: string[],
+    lockedGroups?: { names: string[] }[]
+  ): void {
+    if (!lockedGroups || lockedGroups.length === 0) {
+      return;
+    }
+
+    // Check that all names in locked groups exist in the main names list
+    for (const group of lockedGroups) {
+      for (const name of group.names) {
+        if (!allNames.includes(name)) {
+          throw new BadRequestException(`Name "${name}" in locked group is not in the main list of names`);
+        }
+      }
+    }
+
+    // Check that each name is only in one locked group
+    const namesInLockedGroups = new Set<string>();
+    for (const group of lockedGroups) {
+      for (const name of group.names) {
+        if (namesInLockedGroups.has(name)) {
+          throw new BadRequestException(`Name "${name}" appears in multiple locked groups`);
+        }
+        namesInLockedGroups.add(name);
+      }
+    }
+
+    // Validate that each locked group has at least 2 members
+    for (const group of lockedGroups) {
+      if (group.names.length < 2) {
+        throw new BadRequestException('Each locked group must have at least 2 members');
+      }
+    }
+  }
+
+  private processLockedGroups(
+    allNames: string[],
+    lockedGroups?: { names: string[] }[]
+  ): { lockedSets: string[][], remainingNames: string[] } {
+    // If no locked groups, all names are available for random assignment
+    if (!lockedGroups || lockedGroups.length === 0) {
+      return {
+        lockedSets: [],
+        remainingNames: [...allNames]
+      };
+    }
+
+    // Create locked sets
+    const lockedSets = lockedGroups.map(group => [...group.names]);
+    
+    // Determine remaining names (not in any locked group)
+    const namesInLockedGroups = new Set<string>();
+    for (const group of lockedGroups) {
+      for (const name of group.names) {
+        namesInLockedGroups.add(name);
+      }
+    }
+
+    const remainingNames = allNames.filter(name => !namesInLockedGroups.has(name));
+    
+    return { lockedSets, remainingNames };
+  }
+
+  private assignToTeams(
+    numberOfGroups: number,
+    groupSizes: number[],
+    remainingNames: string[],
+    lockedSets: string[][],
+    groupNames?: { groupId: number, name: string }[]
+  ): Team[] {
+    // Initialize teams
+    const teams: Team[] = [];
+    for (let i = 0; i < numberOfGroups; i++) {
+      const customName = groupNames?.find(g => g.groupId === i + 1)?.name;
+      teams.push({
+        name: customName || `Group ${i + 1}`,
+        members: [],
+        size: 0
+      });
+    }
+
+    // Shuffle remaining names and locked sets for randomness
+    const shuffledNames = this.shuffleArray([...remainingNames]);
+    const shuffledLockedSets = this.shuffleArray([...lockedSets]);
+    
+    // Sort locked sets by size (largest first) to optimize placement
+    shuffledLockedSets.sort((a, b) => b.length - a.length);
+
+    // First, place locked sets in teams
+    for (const lockedSet of shuffledLockedSets) {
+      const lockedSetSize = lockedSet.length;
+      
+      // Find team with most available space
+      let bestTeamIndex = 0;
+      let bestAvailableSpace = -1;
+      
+      for (let i = 0; i < teams.length; i++) {
+        const currentSize = teams[i].members.length;
+        const targetSize = groupSizes[i];
+        const availableSpace = targetSize - currentSize;
+        
+        // If this team has enough space and more than previous best
+        if (availableSpace >= lockedSetSize && availableSpace > bestAvailableSpace) {
+          bestTeamIndex = i;
+          bestAvailableSpace = availableSpace;
+        }
+      }
+      
+      // If no team has enough space, we need to adjust group sizes
+      if (bestAvailableSpace < lockedSetSize) {
+        throw new BadRequestException(
+          `Unable to place locked group of size ${lockedSetSize} in any team. Consider increasing team sizes or reducing locked group constraints.`
+        );
+      }
+      
+      // Add locked set to the best team
+      for (const name of lockedSet) {
+        teams[bestTeamIndex].members.push({ name });
+      }
+      teams[bestTeamIndex].size = teams[bestTeamIndex].members.length;
+    }
+    
+    // Now distribute remaining names
+    // For each group, fill up to its target size
+    let nameIndex = 0;
+    
+    for (let i = 0; i < teams.length; i++) {
+      const targetSize = groupSizes[i];
+      
+      // Fill team up to its target size
+      while (teams[i].members.length < targetSize && nameIndex < shuffledNames.length) {
+        teams[i].members.push({ name: shuffledNames[nameIndex] });
+        nameIndex++;
+      }
+      
+      teams[i].size = teams[i].members.length;
+    }
+    
+    return teams;
   }
 
   private calculateFlexibleGroupSizes(

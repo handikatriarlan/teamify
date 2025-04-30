@@ -53,6 +53,18 @@ export class GroupSizeDto {
   size: number;
 }
 
+export class LockedGroupDto {
+  @ApiProperty({
+    description: 'Array of names that must be placed in the same group',
+    example: ['Alice', 'Bob'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  names: string[];
+}
+
 export class GenerateTeamsDto {
   @ApiProperty({
     description: 'Number of groups/teams to be generated',
@@ -89,7 +101,7 @@ export class GenerateTeamsDto {
   groupNames?: GroupNameDto[];
 
   @ApiPropertyOptional({
-    description: 'Optional custom sizes for specific groups. Groups without specified sizes will have remaining participants distributed evenly among them.',
+    description: 'Optional custom sizes for each group',
     example: [
       { groupId: 1, size: 4 },
       { groupId: 3, size: 5 },
@@ -101,4 +113,18 @@ export class GenerateTeamsDto {
   @ValidateNested({ each: true })
   @Type(() => GroupSizeDto)
   customGroupSizes?: GroupSizeDto[];
+
+  @ApiPropertyOptional({
+    description: 'Optional locked groups of people who must stay together',
+    example: [
+      { names: ['Alice', 'Bob'] },
+      { names: ['Charlie', 'Dave', 'Eve'] }
+    ],
+    type: [LockedGroupDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LockedGroupDto)
+  lockedGroups?: LockedGroupDto[];
 }

@@ -47,6 +47,7 @@ export class TeamGeneratorController {
       - If custom sizes are specified for some groups, those groups get exactly that many members
       - Remaining participants are distributed evenly among groups without custom sizes
       - All groups must have at least 1 member
+      - You can lock certain people together so they always stay in the same team
     `
   })
   @ApiBody({ type: GenerateTeamsDto })
@@ -142,6 +143,7 @@ export class TeamGeneratorController {
       - If custom sizes are specified for some groups, those groups get exactly that many members
       - Remaining participants are distributed evenly among groups without custom sizes
       - All groups must have at least 1 member
+      - You can lock certain people together so they always stay in the same team
     `
   })
   @ApiBody({ type: GenerateTeamsDto })
