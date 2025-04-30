@@ -188,6 +188,83 @@ Response:
 }
 ```
 
+### Generate Teams with Locking Feature
+
+```json
+{
+  "numberOfGroups": 3,
+  "names": [
+    "Alice",
+    "Bob",
+    "Charlie",
+    "Dave",
+    "Eve",
+    "Frank",
+    "Grace",
+    "Heidi"
+  ],
+  "lockedGroups": [
+    { "names": ["Alice", "Bob"] },
+    { "names": ["Charlie", "Dave", "Eve"] }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "teams": [
+    {
+      "name": "Group 1",
+      "members": [
+        {
+          "name": "Frank"
+        },
+        {
+          "name": "Heidi"
+        }
+      ],
+      "size": 2
+    },
+    {
+      "name": "Group 2",
+      "members": [
+        {
+          "name": "Charlie"
+        },
+        {
+          "name": "Dave"
+        },
+        {
+          "name": "Eve"
+        }
+      ],
+      "size": 3
+    },
+    {
+      "name": "Group 3",
+      "members": [
+        {
+          "name": "Alice"
+        },
+        {
+          "name": "Bob"
+        },
+        {
+          "name": "Grace"
+        }
+      ],
+      "size": 3
+    }
+  ],
+  "totalParticipants": 8,
+  "totalTeams": 3,
+  "generatedAt": "2025-04-30T11:18:41.745Z",
+  "isEvenDistribution": false
+}
+```
+
 ### Upload CSV File
 
 ```bash
@@ -254,3 +331,4 @@ For production, set the `ALLOWED_ORIGINS` environment variable to restrict acces
 ```bash
 # In .env file or environment variables
 ALLOWED_ORIGINS=https://your-frontend.com,https://another-frontend.com
+```
