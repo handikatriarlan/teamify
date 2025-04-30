@@ -199,24 +199,26 @@ Response:
 
 ### Generate Teams with Locking Feature
 
-```json
-{
-  "numberOfGroups": 3,
-  "names": [
-    "Alice",
-    "Bob",
-    "Charlie",
-    "Dave",
-    "Eve",
-    "Frank",
-    "Grace",
-    "Heidi"
-  ],
-  "lockedGroups": [
-    { "names": ["Alice", "Bob"] },
-    { "names": ["Charlie", "Dave", "Eve"] }
-  ]
-}
+```bash
+curl -X POST http://localhost:3000/team-generator/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "numberOfGroups": 3,
+    "names": [
+      "Alice",
+      "Bob",
+      "Charlie",
+      "Dave",
+      "Eve",
+      "Frank",
+      "Grace",
+      "Heidi"
+    ],
+    "lockedGroups": [
+      { "names": ["Alice", "Bob"] },
+      { "names": ["Charlie", "Dave", "Eve"] }
+    ]
+  }'
 ```
 
 Response:
