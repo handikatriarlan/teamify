@@ -50,6 +50,15 @@ You can specify exact sizes for specific groups. For example, you might want:
 - Group 3 to have exactly 4 members
 - Let the system automatically distribute the remaining participants to groups 2 and 4
 
+### Group Locking
+
+The API supports locking certain people together so they will always be placed in the same team:
+
+- Create locked groups to ensure specific people always stay together
+- Multiple locked groups can be defined
+- Each person can only be in one locked group
+- Each locked group must have at least 2 members
+
 ### Smart Distribution for Uneven Groups
 
 When even distribution isn't possible, the system randomly determines which groups get the extra members, rather than always assigning extras to the first groups.
