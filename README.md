@@ -343,3 +343,7 @@ For production, set the `ALLOWED_ORIGINS` environment variable to restrict acces
 # In .env file or environment variables
 ALLOWED_ORIGINS=https://your-frontend.com,https://another-frontend.com
 ```
+
+# License
+
+This project is licensed under the MIT License. See the [license](LICENSE) for details.
