@@ -23,10 +23,12 @@ describe('PdfExportService', () => {
         {
           name: 'Team 1',
           members: [{ name: 'Alice' }, { name: 'Bob' }],
+          size: 2
         },
         {
           name: 'Team 2',
           members: [{ name: 'Charlie' }, { name: 'Dave' }],
+          size: 2
         },
       ],
       totalParticipants: 4,
