@@ -24,12 +24,50 @@ export class TeamGeneratorService {
   generateTeams(generateTeamsDto: GenerateTeamsDto): TeamGenerationResult {
     const { numberOfGroups, names, groupNames, customGroupSizes, lockedGroups } = generateTeamsDto;
 
+    // Validate input names array
+    if (!names || names.length === 0) {
+      throw new BadRequestException('No names provided. Please provide at least one name to generate teams.');
+    }
+
+    // Validate number of groups
+    if (numberOfGroups <= 0) {
+      throw new BadRequestException('Number of groups must be a positive integer.');
+    }
+
+    // Check if there are enough names to create at least one team
+    if (names.length < 1) {
+      throw new BadRequestException('At least one name is required to generate teams.');
+    }
+
     // Deduplicate names
     const uniqueNames = [...new Set(names)];
 
     // Check if we have duplicate names
     if (uniqueNames.length !== names.length) {
-      throw new BadRequestException('Duplicate names are not allowed');
+      const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+      throw new BadRequestException(`Duplicate names are not allowed. Found duplicate: ${duplicates[0]}`);
+    }
+
+    // Validate group names if provided
+    if (groupNames) {
+      const invalidGroupIds = groupNames.filter(g => g.groupId < 1 || g.groupId > numberOfGroups);
+      if (invalidGroupIds.length > 0) {
+        throw new BadRequestException(
+          `Invalid group IDs found in group names: ${invalidGroupIds.map(g => g.groupId).join(', ')}. Group IDs must be between 1 and ${numberOfGroups}.`
+        );
+      }
+
+      // Check for duplicates in group IDs
+      const uniqueGroupIds = new Set(groupNames.map(g => g.groupId));
+      if (uniqueGroupIds.size !== groupNames.length) {
+        throw new BadRequestException('Duplicate group IDs found in group names. Each group ID must be unique.');
+      }
+
+      // Check for empty group names
+      const emptyNames = groupNames.filter(g => !g.name || g.name.trim() === '');
+      if (emptyNames.length > 0) {
+        throw new BadRequestException(`Empty group names are not allowed. Group ID ${emptyNames[0].groupId} has an empty name.`);
+      }
     }
 
     // Validate locked groups
@@ -70,6 +108,12 @@ export class TeamGeneratorService {
       return;
     }
 
+    // Check for empty locked groups
+    const emptyGroups = lockedGroups.filter(g => !g.names || g.names.length === 0);
+    if (emptyGroups.length > 0) {
+      throw new BadRequestException('Empty locked groups are not allowed. Each locked group must contain at least 2 names.');
+    }
+
     // Check that all names in locked groups exist in the main names list
     for (const group of lockedGroups) {
       for (const name of group.names) {
@@ -80,21 +124,35 @@ export class TeamGeneratorService {
     }
 
     // Check that each name is only in one locked group
-    const namesInLockedGroups = new Set<string>();
-    for (const group of lockedGroups) {
+    const namesInLockedGroups = new Map<string, number>();
+    for (let i = 0; i < lockedGroups.length; i++) {
+      const group = lockedGroups[i];
       for (const name of group.names) {
         if (namesInLockedGroups.has(name)) {
-          throw new BadRequestException(`Name "${name}" appears in multiple locked groups`);
+          const previousGroupIndex = namesInLockedGroups.get(name);
+          throw new BadRequestException(
+            `Name "${name}" appears in multiple locked groups (group ${previousGroupIndex + 1} and ${i + 1}). Names can only be locked in one group.`
+          );
         }
-        namesInLockedGroups.add(name);
+        namesInLockedGroups.set(name, i);
       }
     }
 
     // Validate that each locked group has at least 2 members
-    for (const group of lockedGroups) {
+    for (let i = 0; i < lockedGroups.length; i++) {
+      const group = lockedGroups[i];
       if (group.names.length < 2) {
-        throw new BadRequestException('Each locked group must have at least 2 members');
+        throw new BadRequestException(`Locked group ${i + 1} must have at least 2 members. Found only ${group.names.length} member(s).`);
       }
+    }
+
+    // Check if any locked group is larger than the total number of participants divided by number of groups
+    const largestLockedGroup = Math.max(...lockedGroups.map(g => g.names.length));
+    const averageGroupSize = Math.ceil(allNames.length / lockedGroups.length);
+    if (largestLockedGroup > averageGroupSize * 2) {
+      throw new BadRequestException(
+        `Locked group with ${largestLockedGroup} members is too large compared to the average group size (${averageGroupSize}). Consider reducing the size of locked groups or increasing the total number of participants.`
+      );
     }
   }
 
@@ -133,6 +191,16 @@ export class TeamGeneratorService {
     lockedSets: string[][],
     groupNames?: { groupId: number, name: string }[]
   ): Team[] {
+    // Validate group sizes sum is equal to total participants
+    const totalSize = groupSizes.reduce((sum, size) => sum + size, 0);
+    const totalParticipants = remainingNames.length + lockedSets.flat().length;
+    
+    if (totalSize !== totalParticipants) {
+      throw new BadRequestException(
+        `Internal error: Group sizes total (${totalSize}) doesn't match total participants (${totalParticipants}). Please report this issue.`
+      );
+    }
+
     // Initialize teams and track available space for each team
     const teams: Team[] = [];
     const availableSpaces: number[] = [...groupSizes];
@@ -180,7 +248,7 @@ export class TeamGeneratorService {
       // If no team has enough space, throw an exception
       if (suitableTeams.length === 0) {
         throw new BadRequestException(
-          `Unable to place locked group of size ${lockedSetSize} in any team. Consider increasing team sizes or reducing locked group constraints.`
+          `Unable to place locked group of size ${lockedSetSize} (members: ${lockedSet.join(', ')}) in any team. Consider increasing team sizes or reducing locked group constraints.`
         );
       }
       
@@ -241,8 +309,9 @@ export class TeamGeneratorService {
     
     // Check if there are unassigned names due to strict size enforcement
     if (nameIndex < shuffledNames.length) {
+      const unassignedNames = shuffledNames.slice(nameIndex);
       throw new BadRequestException(
-        `Unable to assign all participants to teams due to strict size constraints. ${shuffledNames.length - nameIndex} participant(s) could not be assigned. Consider increasing team sizes.`
+        `Unable to assign all participants to teams due to strict size constraints. ${unassignedNames.length} participant(s) could not be assigned: ${unassignedNames.join(', ')}. Consider increasing team sizes.`
       );
     }
     
@@ -286,14 +355,23 @@ export class TeamGeneratorService {
     const invalidGroups = customGroupSizes.filter(g => g.groupId < 1 || g.groupId > numberOfGroups);
     if (invalidGroups.length > 0) {
       throw new BadRequestException(
-        `Invalid group IDs found: ${invalidGroups.map(g => g.groupId).join(', ')}. Group IDs must be between 1 and ${numberOfGroups}.`
+        `Invalid group IDs found in custom sizes: ${invalidGroups.map(g => g.groupId).join(', ')}. Group IDs must be between 1 and ${numberOfGroups}.`
       );
     }
     
     // Check for duplicates in group IDs
     const uniqueGroupIds = new Set(customGroupSizes.map(g => g.groupId));
     if (uniqueGroupIds.size !== customGroupSizes.length) {
-      throw new BadRequestException('Duplicate group IDs found in custom sizes');
+      const groupCounts = new Map<number, number>();
+      for (const { groupId } of customGroupSizes) {
+        groupCounts.set(groupId, (groupCounts.get(groupId) || 0) + 1);
+      }
+      
+      const duplicateIds = Array.from(groupCounts.entries())
+        .filter(([_, count]) => count > 1)
+        .map(([id, _]) => id);
+        
+      throw new BadRequestException(`Duplicate group IDs found in custom sizes: ${duplicateIds.join(', ')}. Each group ID must be unique.`);
     }
     
     // Apply custom sizes
@@ -305,7 +383,14 @@ export class TeamGeneratorService {
       
       // Validate size is positive
       if (size < 1) {
-        throw new BadRequestException(`Group ${groupId} must have at least 1 member`);
+        throw new BadRequestException(`Group ${groupId} must have at least 1 member. Specified size: ${size}`);
+      }
+
+      // Validate size is reasonable
+      if (size > totalParticipants - (numberOfGroups - 1)) {
+        throw new BadRequestException(
+          `Group ${groupId} size (${size}) is too large. Maximum reasonable size would be ${totalParticipants - (numberOfGroups - 1)} to allow at least one member for each other group.`
+        );
       }
       
       // Apply custom size
@@ -317,14 +402,14 @@ export class TeamGeneratorService {
     // Validate remaining participants is enough for groups without custom size
     if (remainingParticipants < groupsWithoutCustomSize.size) {
       throw new BadRequestException(
-        `Not enough participants remaining (${remainingParticipants}) to allocate at least 1 member to each of the ${groupsWithoutCustomSize.size} groups without custom sizes`
+        `Not enough participants remaining (${remainingParticipants}) to allocate at least 1 member to each of the ${groupsWithoutCustomSize.size} groups without custom sizes. Please reduce custom group sizes or increase the number of participants.`
       );
     }
     
     // If remaining participants is negative, custom sizes exceed total participants
     if (remainingParticipants < 0) {
       throw new BadRequestException(
-        `The sum of custom group sizes (${totalParticipants - remainingParticipants}) exceeds the total number of participants (${totalParticipants})`
+        `The sum of custom group sizes (${totalParticipants - remainingParticipants}) exceeds the total number of participants (${totalParticipants}). Please reduce custom group sizes.`
       );
     }
     
