@@ -233,4 +233,225 @@ describe('TeamGeneratorService', () => {
     // Make sure locked groups are in different teams (since they won't fit in one team)
     expect(aliceBobTeamIndex).not.toBe(charlieDaveEveTeamIndex);
   });
+
+  describe('validation errors', () => {
+    it('should throw meaningful error for empty names array', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 3,
+        names: []
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('No names provided');
+    });
+
+    it('should throw meaningful error for invalid number of groups', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 0,
+        names: ['Alice', 'Bob']
+      } as any; // Type assertion to bypass TypeScript validation for test
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Number of groups must be a positive integer');
+    });
+
+    it('should throw meaningful error for duplicate names', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Alice', 'Dave'],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Duplicate names are not allowed');
+      expect(testError).toThrow('Alice');
+    });
+
+    it('should throw meaningful error for invalid group IDs in group names', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        groupNames: [
+          { groupId: 1, name: 'Team Alpha' },
+          { groupId: 3, name: 'Team Invalid' },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Invalid group IDs found in group names');
+      expect(testError).toThrow('3');
+    });
+
+    it('should throw meaningful error for duplicate group IDs in group names', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        groupNames: [
+          { groupId: 1, name: 'Team Alpha' },
+          { groupId: 1, name: 'Team Duplicate' },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Duplicate group IDs found in group names');
+    });
+
+    it('should throw meaningful error for empty group names', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        groupNames: [
+          { groupId: 1, name: 'Team Alpha' },
+          { groupId: 2, name: '' },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Empty group names are not allowed');
+      expect(testError).toThrow('Group ID 2');
+    });
+
+    it('should throw meaningful error for names in locked groups not in the main list', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        lockedGroups: [
+          { names: ['Alice', 'Unknown'] },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Name "Unknown" in locked group is not in the main list of names');
+    });
+
+    it('should throw meaningful error for names in multiple locked groups', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        lockedGroups: [
+          { names: ['Alice', 'Bob'] },
+          { names: ['Charlie', 'Alice'] },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Name "Alice" appears in multiple locked groups');
+      expect(testError).toThrow('group 1 and 2');
+    });
+
+    it('should throw meaningful error for locked groups with fewer than 2 members', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        lockedGroups: [
+          { names: ['Alice'] },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Locked group 1 must have at least 2 members');
+    });
+
+    it('should throw meaningful error for invalid group IDs in custom sizes', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        customGroupSizes: [
+          { groupId: 1, size: 2 },
+          { groupId: 3, size: 2 },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Invalid group IDs found in custom sizes');
+      expect(testError).toThrow('3');
+    });
+
+    it('should throw meaningful error for duplicate group IDs in custom sizes', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        customGroupSizes: [
+          { groupId: 1, size: 2 },
+          { groupId: 1, size: 2 },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Duplicate group IDs found in custom sizes');
+      expect(testError).toThrow('1');
+    });
+
+    it('should throw meaningful error for custom size less than 1', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        customGroupSizes: [
+          { groupId: 1, size: 0 },
+          { groupId: 2, size: 2 },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Group 1 must have at least 1 member');
+    });
+
+    it('should throw meaningful error when custom sizes exceed total participants', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie'],
+        customGroupSizes: [
+          { groupId: 1, size: 2 },
+          { groupId: 2, size: 2 },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Not enough participants remaining');
+    });
+
+    it('should throw meaningful error when not enough participants for all groups', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 3,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave'],
+        customGroupSizes: [
+          { groupId: 1, size: 3 },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Group 1 size (3) is too large');
+    });
+
+    it('should throw meaningful error for group size validation issues', () => {
+      const dto: GenerateTeamsDto = {
+        numberOfGroups: 2,
+        names: ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve'],
+        customGroupSizes: [
+          { groupId: 1, size: 1 },
+          { groupId: 2, size: 1 },
+        ],
+        lockedGroups: [
+          { names: ['Alice', 'Bob', 'Charlie'] },
+        ],
+      };
+
+      const testError = () => service.generateTeams(dto);
+      expect(testError).toThrow(BadRequestException);
+      expect(testError).toThrow('Internal error: Group sizes total');
+    });
+  });
 });
