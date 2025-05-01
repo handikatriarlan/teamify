@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, ValidationError, BadRequestException } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { corsConfig } from './config/cors.config';
@@ -15,6 +15,19 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (validationErrors: ValidationError[] = []) => {
+        const errors = validationErrors.map(error => {
+          const constraints = error.constraints 
+            ? Object.values(error.constraints) 
+            : ['Invalid value'];
+          return `${error.property}: ${constraints.join(', ')}`;
+        });
+        
+        return new BadRequestException({
+          message: 'Validation failed',
+          errors: errors
+        });
+      },
     }),
   );
 
@@ -31,7 +44,7 @@ async function bootstrap() {
       {
         "statusCode": 200,
         "status": "success",
-        "message": "Team generated successfully",
+        "message": "Operation completed successfully",
         "data": { ... },
         "errors": null,
         "timestamp": "2023-07-15T10:30:00Z"

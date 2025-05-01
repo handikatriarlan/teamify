@@ -102,11 +102,17 @@ export class TeamGeneratorController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<CsvUploadResponseDto> {
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException({
+        message: 'No file uploaded',
+        errors: ['Please select a CSV file to upload']
+      });
     }
 
     if (file.mimetype !== 'text/csv') {
-      throw new BadRequestException('Only CSV files are allowed');
+      throw new BadRequestException({
+        message: 'Only CSV files are allowed',
+        errors: [`Received file of type "${file.mimetype}" instead of text/csv`]
+      });
     }
 
     const names: string[] = [];
@@ -125,16 +131,25 @@ export class TeamGeneratorController {
         .on('end', () => {
           if (names.length === 0) {
             reject(
-              new BadRequestException('No valid names found in the CSV file'),
+              new BadRequestException({
+                message: 'No valid names found in the CSV file',
+                errors: ['The uploaded CSV file did not contain any valid names']
+              }),
             );
           } else {
-            // Return plain data, the interceptor will format it
-            resolve({ names: [...new Set(names)] });
+            // Return plain data with a custom message, the interceptor will format it
+            resolve({ 
+              names: [...new Set(names)],
+              message: 'CSV file processed successfully'
+            });
           }
         })
         .on('error', (error) => {
           reject(
-            new BadRequestException(`Error parsing CSV: ${error.message}`),
+            new BadRequestException({
+              message: 'Error parsing CSV',
+              errors: [error.message]
+            }),
           );
         });
     });

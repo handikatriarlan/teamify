@@ -42,9 +42,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
         // For custom messages in exceptions
         else if (exceptionObj.message) {
           errorMessage = exceptionObj.message as string;
+          // If no structured error details, use the message itself as error details
+          if (!errorDetails) {
+            errorDetails = exceptionObj.message;
+          }
         }
       } else if (typeof exceptionResponse === 'string') {
         errorMessage = exceptionResponse;
+        errorDetails = exceptionResponse;
       }
     } else {
       // For unknown errors, log them but don't expose details to client
@@ -52,6 +57,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         `Unhandled exception: ${exception.message}`,
         exception.stack,
       );
+      // For production, don't expose actual error message, but for development it can be helpful
+      if (process.env.NODE_ENV !== 'production') {
+        errorDetails = exception.message;
+      }
     }
 
     const responseBody = {
@@ -61,7 +70,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       data: null,
       errors: errorDetails,
       timestamp: new Date().toISOString(),
-      path: request.url,
     };
 
     response.status(status).json(responseBody);

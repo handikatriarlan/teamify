@@ -58,6 +58,13 @@ export class TeamGenerationResponseDto {
     example: true,
   })
   isEvenDistribution: boolean;
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'Teams generated successfully',
+    required: false,
+  })
+  message?: string;
 }
 
 export class CsvUploadResponseDto {
@@ -66,4 +73,11 @@ export class CsvUploadResponseDto {
     example: ['Alice', 'Bob', 'Charlie'],
   })
   names: string[];
+
+  @ApiProperty({
+    description: 'Response message',
+    example: 'CSV file processed successfully',
+    required: false,
+  })
+  message?: string;
 }

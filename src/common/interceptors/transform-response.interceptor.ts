@@ -22,25 +22,26 @@ export class TransformResponseInterceptor<T>
 
     return next.handle().pipe(
       map((data) => {
-        // Check if the response is already in our standard format
-        if (
-          data &&
-          typeof data === 'object' &&
-          'statusCode' in data &&
-          'status' in data &&
-          'message' in data &&
-          'timestamp' in data
-        ) {
-          // Response is already formatted, return as is
-          return data;
-        }
+        // Extract message if it exists in the data
+        let message = this.resolveMessage(statusCode);
+        let responseData = data;
         
-        // Otherwise, transform to standard format
+        // If there's a message property in the data, use it and remove it from the data
+        if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+          message = data.message;
+          
+          // If it's a plain object (not a class instance), remove the message property
+          if (data.constructor === Object) {
+            const { message: _, ...rest } = data;
+            responseData = rest as T;
+          }
+        }
+
         return {
           statusCode,
           status: this.resolveStatus(statusCode),
-          message: this.resolveMessage(statusCode, data),
-          data,
+          message,
+          data: responseData,
           errors: null,
           timestamp: new Date().toISOString(),
         };
@@ -58,16 +59,11 @@ export class TransformResponseInterceptor<T>
     }
   }
 
-  private resolveMessage(statusCode: number, data: any): string {
-    // Use custom message if provided in data
-    if (data && data.message && typeof data.message === 'string') {
-      return data.message;
-    }
-
+  private resolveMessage(statusCode: number): string {
     // Default messages based on status code
     switch (statusCode) {
       case 200:
-        return 'Team generated successfully';
+        return 'Operation completed successfully';
       case 201:
         return 'Resource created successfully';
       case 204:
