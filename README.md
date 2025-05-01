@@ -1,4 +1,4 @@
-# Teamify - Team Generator API
+# Teamify API - Team Generator Application
 
 A NestJS application for generating random teams from a list of names with smart distribution features.
 
@@ -75,7 +75,7 @@ When even distribution isn't possible, the system randomly determines which grou
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/handikatriarlan/teamify.git
+git clone https://github.com/handikatriarlan/teamify-api.git
 ```
 
 2. Install dependencies:
