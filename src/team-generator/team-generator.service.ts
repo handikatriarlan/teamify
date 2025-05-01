@@ -155,6 +155,9 @@ export class TeamGeneratorService {
     // Sort locked sets by size (largest first) to optimize placement
     shuffledLockedSets.sort((a, b) => b.length - a.length);
 
+    // Track which team each locked member is assigned to
+    const memberTeamAssignments = new Map<string, number>();
+
     // First, place locked sets in teams
     for (const lockedSet of shuffledLockedSets) {
       const lockedSetSize = lockedSet.length;
@@ -187,26 +190,36 @@ export class TeamGeneratorService {
       this.shuffleArray(suitableTeams);
       const bestTeamIndex = suitableTeams[0].index;
       
-      // Add locked set to the selected team
+      // Track which team each locked member is assigned to
       for (const name of lockedSet) {
-        teams[bestTeamIndex].members.push({ name });
+        memberTeamAssignments.set(name, bestTeamIndex);
       }
-      teams[bestTeamIndex].size = teams[bestTeamIndex].members.length;
+    }
+    
+    // Create arrays of member names for each team (without adding them yet)
+    const teamMemberNames: string[][] = Array(numberOfGroups).fill(null).map(() => []);
+    
+    // Add locked members to their assigned team's member names array
+    for (const [name, teamIndex] of memberTeamAssignments.entries()) {
+      teamMemberNames[teamIndex].push(name);
     }
     
     // Now distribute remaining names
-    // For each group, fill up to its target size
     let nameIndex = 0;
-    
     for (let i = 0; i < teams.length; i++) {
       const targetSize = groupSizes[i];
       
-      // Fill team up to its target size
-      while (teams[i].members.length < targetSize && nameIndex < shuffledNames.length) {
-        teams[i].members.push({ name: shuffledNames[nameIndex] });
+      // Fill up to target size
+      while (teamMemberNames[i].length < targetSize && nameIndex < shuffledNames.length) {
+        teamMemberNames[i].push(shuffledNames[nameIndex]);
         nameIndex++;
       }
-      
+    }
+    
+    // Shuffle each team's member names and create the final members array
+    for (let i = 0; i < teams.length; i++) {
+      const shuffledTeamMembers = this.shuffleArray(teamMemberNames[i]);
+      teams[i].members = shuffledTeamMembers.map(name => ({ name }));
       teams[i].size = teams[i].members.length;
     }
     
