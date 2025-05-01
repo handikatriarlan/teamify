@@ -144,6 +144,10 @@ export class TeamGeneratorService {
       });
     }
 
+    // Create a shuffled order of team indices for initial placement
+    const teamIndices = Array.from({ length: numberOfGroups }, (_, i) => i);
+    this.shuffleArray(teamIndices);
+
     // Shuffle remaining names and locked sets for randomness
     const shuffledNames = this.shuffleArray([...remainingNames]);
     const shuffledLockedSets = this.shuffleArray([...lockedSets]);
@@ -155,30 +159,35 @@ export class TeamGeneratorService {
     for (const lockedSet of shuffledLockedSets) {
       const lockedSetSize = lockedSet.length;
       
-      // Find team with most available space
-      let bestTeamIndex = 0;
-      let bestAvailableSpace = -1;
+      // Find suitable teams in random order
+      const suitableTeams = [];
       
-      for (let i = 0; i < teams.length; i++) {
-        const currentSize = teams[i].members.length;
-        const targetSize = groupSizes[i];
+      for (const teamIdx of teamIndices) {
+        const currentSize = teams[teamIdx].members.length;
+        const targetSize = groupSizes[teamIdx];
         const availableSpace = targetSize - currentSize;
         
-        // If this team has enough space and more than previous best
-        if (availableSpace >= lockedSetSize && availableSpace > bestAvailableSpace) {
-          bestTeamIndex = i;
-          bestAvailableSpace = availableSpace;
+        // If this team has enough space
+        if (availableSpace >= lockedSetSize) {
+          suitableTeams.push({ 
+            index: teamIdx, 
+            availableSpace: availableSpace
+          });
         }
       }
       
-      // If no team has enough space, we need to adjust group sizes
-      if (bestAvailableSpace < lockedSetSize) {
+      // If no team has enough space, throw an exception
+      if (suitableTeams.length === 0) {
         throw new BadRequestException(
           `Unable to place locked group of size ${lockedSetSize} in any team. Consider increasing team sizes or reducing locked group constraints.`
         );
       }
       
-      // Add locked set to the best team
+      // Randomly select one of the suitable teams
+      this.shuffleArray(suitableTeams);
+      const bestTeamIndex = suitableTeams[0].index;
+      
+      // Add locked set to the selected team
       for (const name of lockedSet) {
         teams[bestTeamIndex].members.push({ name });
       }
