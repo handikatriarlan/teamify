@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  HttpCode,
+  HttpStatus,
   Post,
   Res,
   UploadedFile,
@@ -26,8 +28,9 @@ import {
   ApiBody,
   ApiProduces,
   ApiBadRequestResponse,
-  ApiCreatedResponse,
+  ApiOkResponse,
 } from '@nestjs/swagger';
+import { ApiResponseDto } from '../common/dto/api-response.dto';
 
 @ApiTags('team-generator')
 @Controller('team-generator')
@@ -38,6 +41,7 @@ export class TeamGeneratorController {
   ) {}
 
   @Post('generate')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Generate teams',
     description: `
@@ -51,20 +55,23 @@ export class TeamGeneratorController {
     `
   })
   @ApiBody({ type: GenerateTeamsDto })
-  @ApiCreatedResponse({
+  @ApiOkResponse({
     description: 'Teams generated successfully',
-    type: TeamGenerationResponseDto,
+    type: () => ApiResponseDto<TeamGenerationResponseDto>,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid input parameters or constraints violation, such as insufficient participants or invalid group sizes'
+    description: 'Invalid input parameters or constraints violation, such as insufficient participants or invalid group sizes',
+    type: () => ApiResponseDto<null>,
   })
   async generateTeams(
     @Body() generateTeamsDto: GenerateTeamsDto,
   ): Promise<TeamGenerationResponseDto> {
+    // Return plain data, the interceptor will format it
     return this.teamGeneratorService.generateTeams(generateTeamsDto);
   }
 
   @Post('upload-csv')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Upload CSV with names',
     description: 'Upload a CSV file containing names to be used for team generation. The names can then be used with custom group sizes in the generate endpoint.'
@@ -82,12 +89,13 @@ export class TeamGeneratorController {
       },
     },
   })
-  @ApiCreatedResponse({
+  @ApiOkResponse({
     description: 'CSV processed successfully',
-    type: CsvUploadResponseDto,
+    type: () => ApiResponseDto<CsvUploadResponseDto>,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid file format or no names found in the CSV'
+    description: 'Invalid file format or no names found in the CSV',
+    type: () => ApiResponseDto<null>,
   })
   @UseInterceptors(FileInterceptor('file'))
   async uploadCsv(
@@ -102,7 +110,6 @@ export class TeamGeneratorController {
     }
 
     const names: string[] = [];
-
     const stream = Readable.from(file.buffer);
 
     return new Promise((resolve, reject) => {
@@ -121,7 +128,7 @@ export class TeamGeneratorController {
               new BadRequestException('No valid names found in the CSV file'),
             );
           } else {
-            // Return unique names
+            // Return plain data, the interceptor will format it
             resolve({ names: [...new Set(names)] });
           }
         })
@@ -167,7 +174,7 @@ export class TeamGeneratorController {
     @Body() generateTeamsDto: GenerateTeamsDto,
     @Res() res: Response,
   ) {
-    const result = this.teamGeneratorService.generateTeams(generateTeamsDto);
+    const result = await this.teamGeneratorService.generateTeams(generateTeamsDto);
     const pdf = await this.pdfExportService.generatePdf(result);
 
     res.setHeader('Content-Type', 'application/pdf');

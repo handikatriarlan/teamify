@@ -258,10 +258,10 @@ describe('TeamGeneratorService', () => {
     });
 
     it('should throw meaningful error for duplicate names', () => {
-      const dto: GenerateTeamsDto = {
-        numberOfGroups: 2,
-        names: ['Alice', 'Bob', 'Alice', 'Dave'],
-      };
+    const dto: GenerateTeamsDto = {
+      numberOfGroups: 2,
+      names: ['Alice', 'Bob', 'Alice', 'Dave'],
+    };
 
       const testError = () => service.generateTeams(dto);
       expect(testError).toThrow(BadRequestException);
