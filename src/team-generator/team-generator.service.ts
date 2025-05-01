@@ -133,8 +133,10 @@ export class TeamGeneratorService {
     lockedSets: string[][],
     groupNames?: { groupId: number, name: string }[]
   ): Team[] {
-    // Initialize teams
+    // Initialize teams and track available space for each team
     const teams: Team[] = [];
+    const availableSpaces: number[] = [...groupSizes];
+    
     for (let i = 0; i < numberOfGroups; i++) {
       const customName = groupNames?.find(g => g.groupId === i + 1)?.name;
       teams.push({
@@ -166,15 +168,11 @@ export class TeamGeneratorService {
       const suitableTeams = [];
       
       for (const teamIdx of teamIndices) {
-        const currentSize = teams[teamIdx].members.length;
-        const targetSize = groupSizes[teamIdx];
-        const availableSpace = targetSize - currentSize;
-        
-        // If this team has enough space
-        if (availableSpace >= lockedSetSize) {
+        // If this team has enough available space
+        if (availableSpaces[teamIdx] >= lockedSetSize) {
           suitableTeams.push({ 
             index: teamIdx, 
-            availableSpace: availableSpace
+            availableSpace: availableSpaces[teamIdx]
           });
         }
       }
@@ -190,6 +188,9 @@ export class TeamGeneratorService {
       this.shuffleArray(suitableTeams);
       const bestTeamIndex = suitableTeams[0].index;
       
+      // Reduce available space for the selected team
+      availableSpaces[bestTeamIndex] -= lockedSetSize;
+      
       // Track which team each locked member is assigned to
       for (const name of lockedSet) {
         memberTeamAssignments.set(name, bestTeamIndex);
@@ -204,15 +205,30 @@ export class TeamGeneratorService {
       teamMemberNames[teamIndex].push(name);
     }
     
-    // Now distribute remaining names
+    // Now distribute remaining names - respecting available space
     let nameIndex = 0;
-    for (let i = 0; i < teams.length; i++) {
-      const targetSize = groupSizes[i];
+    
+    // First shuffle teams to randomize the order in which we fill teams
+    const shuffledTeamIndices = [...teamIndices];
+    this.shuffleArray(shuffledTeamIndices);
+    
+    // Keep assigning names while we have names left and space available in any team
+    while (nameIndex < shuffledNames.length) {
+      let assignedThisRound = false;
       
-      // Fill up to target size
-      while (teamMemberNames[i].length < targetSize && nameIndex < shuffledNames.length) {
-        teamMemberNames[i].push(shuffledNames[nameIndex]);
-        nameIndex++;
+      // Try to assign to teams with available space
+      for (const i of shuffledTeamIndices) {
+        if (availableSpaces[i] > 0 && nameIndex < shuffledNames.length) {
+          teamMemberNames[i].push(shuffledNames[nameIndex]);
+          availableSpaces[i]--;
+          nameIndex++;
+          assignedThisRound = true;
+        }
+      }
+      
+      // If we couldn't assign any name this round, we're done
+      if (!assignedThisRound) {
+        break;
       }
     }
     
@@ -221,6 +237,13 @@ export class TeamGeneratorService {
       const shuffledTeamMembers = this.shuffleArray(teamMemberNames[i]);
       teams[i].members = shuffledTeamMembers.map(name => ({ name }));
       teams[i].size = teams[i].members.length;
+    }
+    
+    // Check if there are unassigned names due to strict size enforcement
+    if (nameIndex < shuffledNames.length) {
+      throw new BadRequestException(
+        `Unable to assign all participants to teams due to strict size constraints. ${shuffledNames.length - nameIndex} participant(s) could not be assigned. Consider increasing team sizes.`
+      );
     }
     
     return teams;

@@ -171,4 +171,66 @@ describe('TeamGeneratorService', () => {
 
     expect(() => service.generateTeams(dto)).toThrow(BadRequestException);
   });
+
+  it('should respect custom group sizes', () => {
+    const dto: GenerateTeamsDto = {
+      numberOfGroups: 3,
+      names: ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve', 'Frank', 'Grace', 'Heidi'],
+      customGroupSizes: [
+        { groupId: 1, size: 3 },
+        { groupId: 2, size: 2 },
+        { groupId: 3, size: 3 }
+      ]
+    };
+
+    const result = service.generateTeams(dto);
+
+    // Verify each team has the exact size specified
+    expect(result.teams[0].size).toBe(3);
+    expect(result.teams[1].size).toBe(2);
+    expect(result.teams[2].size).toBe(3);
+  });
+
+  it('should respect both custom group sizes and locked groups', () => {
+    const dto: GenerateTeamsDto = {
+      numberOfGroups: 3,
+      names: ['Alice', 'Bob', 'Charlie', 'Dave', 'Eve', 'Frank', 'Grace', 'Heidi'],
+      customGroupSizes: [
+        { groupId: 1, size: 3 },
+        { groupId: 2, size: 2 },
+        { groupId: 3, size: 3 }
+      ],
+      lockedGroups: [
+        { names: ['Alice', 'Bob'] },
+        { names: ['Charlie', 'Dave', 'Eve'] }
+      ]
+    };
+
+    const result = service.generateTeams(dto);
+
+    // Verify each team has the exact size specified
+    expect(result.teams[0].size).toBe(3);
+    expect(result.teams[1].size).toBe(2);
+    expect(result.teams[2].size).toBe(3);
+
+    // Find which team contains the Alice-Bob locked group
+    const aliceBobTeamIndex = result.teams.findIndex(team => 
+      team.members.some(m => m.name === 'Alice') && 
+      team.members.some(m => m.name === 'Bob')
+    );
+    
+    // Find which team contains the Charlie-Dave-Eve locked group
+    const charlieDaveEveTeamIndex = result.teams.findIndex(team => 
+      team.members.some(m => m.name === 'Charlie') && 
+      team.members.some(m => m.name === 'Dave') &&
+      team.members.some(m => m.name === 'Eve')
+    );
+
+    // Make sure locked groups are in the same team
+    expect(aliceBobTeamIndex).not.toBe(-1);
+    expect(charlieDaveEveTeamIndex).not.toBe(-1);
+
+    // Make sure locked groups are in different teams (since they won't fit in one team)
+    expect(aliceBobTeamIndex).not.toBe(charlieDaveEveTeamIndex);
+  });
 });
