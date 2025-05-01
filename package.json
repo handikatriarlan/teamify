@@ -1,5 +1,5 @@
 {
-  "name": "teamify",
+  "name": "teamify-api",
   "version": "0.0.1",
   "description": "A NestJS application to generate random teams from a list of names",
   "author": "",

@@ -59,7 +59,7 @@ export class PdfExportService {
         .fontSize(10)
         .font('Helvetica')
         .fillColor('#888888')
-        .text('Generated using Teamify - Team Generator Application', {
+        .text('Generated using Teamify API - Team Generator Application', {
           align: 'center',
         });
 
